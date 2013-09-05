@@ -9,6 +9,8 @@
 
 #import "FLWizardHeaderViewController.h"
 
+#import <QuartzCore/QuartzCore.h>
+
 #define kAnimationDuration 0.2
 
 @interface FLWizardHeaderViewController ()
@@ -43,8 +45,10 @@
         nil];
             
     NSAttributedString* attributedString = FLAutorelease([[NSAttributedString alloc] initWithString:title attributes:attr]);
-    
-    if(animated) {
+
+#if __MAC_10_8    
+    if(animated && OSXVersionIsAtLeast10_8()) {
+
         NSTextField* old = FLAutorelease([[[_titleView class] alloc] initWithFrame:_titleView.frame]);
         old.textColor = _titleView.textColor;
         old.drawsBackground = _titleView.drawsBackground;
@@ -70,10 +74,11 @@
         }];
 
     }
-    else {
+    else
+#endif
+    {
         _titleView.attributedStringValue = attributedString;
     }
-    
 }
 
 - (SDKView*) contentView {
@@ -82,35 +87,49 @@
 
 - (void) panelWillAppear:(FLPanelViewController*) panel {
 
+#if __MAC_10_8    
+    if(OSXVersionIsAtLeast10_8()) {
+        if(panel.isAuthenticated && _logoutButton.isHidden) {
+            _logoutButton.hidden = NO;
+            _welcomeText.hidden = NO;
+            _logoutButton.alphaValue = 0.0;
+            _welcomeText.alphaValue = 0.0;
+
+            [NSAnimationContext runAnimationGroup:^(NSAnimationContext *context) {
+                [context setDuration: kAnimationDuration];
+                [context setTimingFunction: [CAMediaTimingFunction functionWithName: kCAMediaTimingFunctionEaseIn]];
+                
+                [_welcomeText.animator setAlphaValue:1.0];
+                [_logoutButton.animator setAlphaValue: 1.0];
+            } completionHandler: ^{
+            }];    
+        }
+        else if(!panel.isAuthenticated && !_logoutButton.isHidden) {
+            [NSAnimationContext runAnimationGroup:^(NSAnimationContext *context) {
+                [context setDuration: kAnimationDuration];
+                [context setTimingFunction: [CAMediaTimingFunction functionWithName: kCAMediaTimingFunctionEaseIn]];
+                
+                [_logoutButton.animator setAlphaValue:0.0];
+                [_welcomeText.animator setAlphaValue: 0.0];
+            } completionHandler: ^{
+                _logoutButton.hidden = YES;
+                _welcomeText.hidden = YES;
+                _logoutButton.alphaValue = 1.0;
+                _welcomeText.alphaValue = 1.0;
+            }];
+        }
+    }
+    else
+#endif
     if(panel.isAuthenticated && _logoutButton.isHidden) {
         _logoutButton.hidden = NO;
         _welcomeText.hidden = NO;
-        _logoutButton.alphaValue = 0.0;
-        _welcomeText.alphaValue = 0.0;
+    }
+    else {
+        _logoutButton.hidden = YES;
+        _welcomeText.hidden = YES;
+    }
 
-        [NSAnimationContext runAnimationGroup:^(NSAnimationContext *context) {
-            [context setDuration: kAnimationDuration];
-            [context setTimingFunction: [CAMediaTimingFunction functionWithName: kCAMediaTimingFunctionEaseIn]];
-            
-            [_welcomeText.animator setAlphaValue:1.0];
-            [_logoutButton.animator setAlphaValue: 1.0];
-        } completionHandler: ^{
-        }];    
-    }
-    else if(!panel.isAuthenticated && !_logoutButton.isHidden) {
-        [NSAnimationContext runAnimationGroup:^(NSAnimationContext *context) {
-            [context setDuration: kAnimationDuration];
-            [context setTimingFunction: [CAMediaTimingFunction functionWithName: kCAMediaTimingFunctionEaseIn]];
-            
-            [_logoutButton.animator setAlphaValue:0.0];
-            [_welcomeText.animator setAlphaValue: 0.0];
-        } completionHandler: ^{
-            _logoutButton.hidden = YES;
-            _welcomeText.hidden = YES;
-            _logoutButton.alphaValue = 1.0;
-            _welcomeText.alphaValue = 1.0;
-        }];
-    }
 }
 
 - (void) setTextNextToLogoutButton:(NSString*) welcomeText {
